@@ -355,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildQualitySelector() {
     final text = _format == OutputFormat.mp3 ? '$_quality kbps' : '${_quality}p';
     return GestureDetector(
-      onTap: _showQualityPicker,
+      onTap: _showQualityOptions,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: _fieldDecoration(false),
@@ -366,7 +366,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 10),
             Text(text, style: const TextStyle(fontSize: 16, color: _ink)),
             const Spacer(),
-            const Icon(CupertinoIcons.chevron_up_chevron_down,
+            const Icon(CupertinoIcons.chevron_down,
                 size: 18, color: CupertinoColors.systemGrey),
           ],
         ),
@@ -374,45 +374,41 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showQualityPicker() {
+  void _showQualityOptions() {
     FocusScope.of(context).unfocus();
     final options = _qualities;
     showCupertinoModalPopup<void>(
       context: context,
-      builder: (popupContext) => Container(
-        height: 280,
-        padding: const EdgeInsets.only(top: 6),
-        color: CupertinoColors.systemBackground.resolveFrom(popupContext),
-        child: Column(
-          children: [
-            Container(
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: CupertinoButton(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                onPressed: () => Navigator.of(popupContext).pop(),
-                child: const Text('Listo',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-              ),
-            ),
-            Expanded(
-              child: CupertinoPicker(
-                scrollController:
-                    FixedExtentScrollController(initialItem: options.indexOf(_quality)),
-                itemExtent: 38,
-                onSelectedItemChanged: (i) =>
-                    setState(() => _quality = options[i]),
-                children: options
-                    .map((q) => Center(
-                          child: Text(
-                            _format == OutputFormat.mp3 ? '$q kbps' : '${q}p',
-                            style: const TextStyle(fontSize: 20),
-                          ),
-                        ))
-                    .toList(),
-              ),
-            ),
-          ],
+      builder: (popupContext) => CupertinoActionSheet(
+        title: Text(
+            _format == OutputFormat.mp3 ? 'Calidad de audio' : 'Resolución'),
+        actions: options.map((q) {
+          final selected = q == _quality;
+          final label = _format == OutputFormat.mp3 ? '$q kbps' : '${q}p';
+          return CupertinoActionSheetAction(
+            onPressed: () {
+              setState(() => _quality = q);
+              Navigator.of(popupContext).pop();
+            },
+            child: selected
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(label,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, color: _accent)),
+                      const SizedBox(width: 8),
+                      const Icon(CupertinoIcons.checkmark,
+                          size: 20, color: _accent),
+                    ],
+                  )
+                : Text(label),
+          );
+        }).toList(),
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.of(popupContext).pop(),
+          child: const Text('Cancelar'),
         ),
       ),
     );
