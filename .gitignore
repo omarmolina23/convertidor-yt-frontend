@@ -1,0 +1,17 @@
+# ----- Flutter / Dart -----
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+# pubspec.lock SÍ se versiona (es una app, no un paquete)
+
+# ----- IDEs -----
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# ----- Sistema -----
+.DS_Store
+Thumbs.db
