@@ -30,7 +30,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _submitting = false;
   String? _errorMessage;
 
-  // Calidades disponibles según el formato.
   static const _audioQualities = ['128', '192', '256', '320'];
   static const _videoQualities = ['480', '720', '1080'];
 
@@ -48,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
 
     setState(() {
       _submitting = true;
@@ -76,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _startPolling(String jobId) {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) async {
+    _pollTimer = Timer.periodic(const Duration(milliseconds: 1200), (_) async {
       try {
         final status = await _service.fetchStatus(jobId);
         if (!mounted) return;
@@ -112,38 +112,21 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Convertidor YouTube → MP3/MP4'),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Card(
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildUrlField(),
-                      const SizedBox(height: 20),
-                      _buildFormatSelector(),
-                      const SizedBox(height: 20),
-                      _buildQualitySelector(),
-                      const SizedBox(height: 8),
-                      _buildIntervalSection(),
-                      const SizedBox(height: 24),
-                      _buildSubmitButton(),
-                      const SizedBox(height: 16),
-                      _buildResultSection(),
-                    ],
-                  ),
-                ),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildHeader(),
+                  const SizedBox(height: 28),
+                  _buildCard(),
+                  const SizedBox(height: 20),
+                  _buildFooter(),
+                ],
               ),
             ),
           ),
@@ -152,14 +135,99 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildHeader() {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: scheme.primary,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Icon(Icons.play_arrow_rounded,
+              color: Colors.white, size: 34),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Convertidor YouTube',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Convierte cualquier video a MP3 o MP4',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey.shade600,
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildUrlField(),
+            const SizedBox(height: 22),
+            _label('Formato'),
+            const SizedBox(height: 10),
+            _buildFormatSelector(),
+            const SizedBox(height: 22),
+            _label(_format == OutputFormat.mp3
+                ? 'Calidad de audio'
+                : 'Resolución'),
+            const SizedBox(height: 10),
+            _buildQualitySelector(),
+            const SizedBox(height: 6),
+            _buildIntervalSection(),
+            const SizedBox(height: 24),
+            _buildSubmitButton(),
+            _buildResultSection(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _label(String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontWeight: FontWeight.w600,
+        fontSize: 13.5,
+        color: Colors.grey.shade800,
+      ),
+    );
+  }
+
   Widget _buildUrlField() {
     return TextFormField(
       controller: _urlController,
+      keyboardType: TextInputType.url,
       decoration: const InputDecoration(
-        labelText: 'Enlace de YouTube',
-        hintText: 'https://www.youtube.com/watch?v=...',
-        prefixIcon: Icon(Icons.link),
-        border: OutlineInputBorder(),
+        hintText: 'Pega el enlace de YouTube',
+        prefixIcon: Icon(Icons.link_rounded),
       ),
       validator: (value) {
         final v = value?.trim() ?? '';
@@ -173,51 +241,47 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildFormatSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Formato', style: TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        SegmentedButton<OutputFormat>(
-          segments: const [
-            ButtonSegment(
-              value: OutputFormat.mp3,
-              label: Text('MP3'),
-              icon: Icon(Icons.music_note),
-            ),
-            ButtonSegment(
-              value: OutputFormat.mp4,
-              label: Text('MP4'),
-              icon: Icon(Icons.movie),
-            ),
-          ],
-          selected: {_format},
-          onSelectionChanged: (selection) {
-            setState(() {
-              _format = selection.first;
-              _quality = _qualities.first;
-            });
-          },
+    return SegmentedButton<OutputFormat>(
+      style: SegmentedButton.styleFrom(
+        selectedBackgroundColor:
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+        selectedForegroundColor: Theme.of(context).colorScheme.primary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      segments: const [
+        ButtonSegment(
+          value: OutputFormat.mp3,
+          label: Text('MP3'),
+          icon: Icon(Icons.music_note_rounded),
+        ),
+        ButtonSegment(
+          value: OutputFormat.mp4,
+          label: Text('MP4'),
+          icon: Icon(Icons.movie_rounded),
         ),
       ],
+      selected: {_format},
+      onSelectionChanged: (selection) {
+        setState(() {
+          _format = selection.first;
+          _quality = _qualities.first;
+        });
+      },
     );
   }
 
   Widget _buildQualitySelector() {
-    final label =
-        _format == OutputFormat.mp3 ? 'Bitrate (kbps)' : 'Resolución (p)';
     return DropdownButtonFormField<String>(
-      // La key ligada al formato fuerza recrear el campo al cambiar MP3<->MP4,
-      // así el valor inicial concuerda con la nueva lista de calidades.
       key: ValueKey(_format),
       initialValue: _quality,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: const Icon(Icons.tune),
-        border: const OutlineInputBorder(),
+      decoration: const InputDecoration(
+        prefixIcon: Icon(Icons.tune_rounded),
       ),
       items: _qualities
-          .map((q) => DropdownMenuItem(value: q, child: Text(q)))
+          .map((q) => DropdownMenuItem(
+                value: q,
+                child: Text(_format == OutputFormat.mp3 ? '$q kbps' : '${q}p'),
+              ))
           .toList(),
       onChanged: (value) => setState(() => _quality = value ?? _quality),
     );
@@ -227,41 +291,59 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Descargar solo un intervalo'),
-          subtitle: const Text('Recorta por tiempo (formato MM:SS o HH:MM:SS)'),
-          value: _useInterval,
-          onChanged: (v) => setState(() => _useInterval = v),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Recortar por intervalo'),
+                  Text(
+                    'Descarga solo un tramo (MM:SS o HH:MM:SS)',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            Switch(
+              value: _useInterval,
+              onChanged: (v) => setState(() => _useInterval = v),
+            ),
+          ],
         ),
-        if (_useInterval)
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _startController,
-                  decoration: const InputDecoration(
-                    labelText: 'Inicio',
-                    hintText: '00:30',
-                    border: OutlineInputBorder(),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          child: _useInterval
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _startController,
+                          decoration: const InputDecoration(
+                            labelText: 'Inicio',
+                            hintText: '00:30',
+                          ),
+                          validator: _validateTime,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _endController,
+                          decoration: const InputDecoration(
+                            labelText: 'Fin',
+                            hintText: '01:45',
+                          ),
+                          validator: _validateTime,
+                        ),
+                      ),
+                    ],
                   ),
-                  validator: _validateTime,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextFormField(
-                  controller: _endController,
-                  decoration: const InputDecoration(
-                    labelText: 'Fin',
-                    hintText: '01:45',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: _validateTime,
-                ),
-              ),
-            ],
-          ),
+                )
+              : const SizedBox.shrink(),
+        ),
       ],
     );
   }
@@ -271,33 +353,38 @@ class _HomeScreenState extends State<HomeScreen> {
     final v = value?.trim() ?? '';
     if (v.isEmpty) return 'Requerido';
     final regex = RegExp(r'^([0-9]{1,2}:)?[0-5]?[0-9]:[0-5][0-9]$');
-    if (!regex.hasMatch(v)) return 'Formato MM:SS o HH:MM:SS';
+    if (!regex.hasMatch(v)) return 'MM:SS o HH:MM:SS';
     return null;
   }
 
   Widget _buildSubmitButton() {
-    return FilledButton.icon(
-      onPressed: _submitting ? null : _submit,
-      icon: _submitting
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Icon(Icons.download),
-      style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+    return SizedBox(
+      height: 52,
+      child: FilledButton.icon(
+        onPressed: _submitting ? null : _submit,
+        style: FilledButton.styleFrom(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        icon: _submitting
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              )
+            : const Icon(Icons.bolt_rounded),
+        label: Text(_submitting ? 'Procesando…' : 'Convertir'),
       ),
-      label: Text(_submitting ? 'Procesando...' : 'Convertir'),
     );
   }
 
   Widget _buildResultSection() {
     if (_errorMessage != null) {
-      return _MessageBanner(
-        icon: Icons.error_outline,
-        color: Colors.red,
-        text: _errorMessage!,
+      return Padding(
+        padding: const EdgeInsets.only(top: 20),
+        child: _ErrorBanner(message: _errorMessage!),
       );
     }
 
@@ -305,62 +392,162 @@ class _HomeScreenState extends State<HomeScreen> {
     if (status == null) return const SizedBox.shrink();
 
     if (status.state == JobState.ready) {
-      return Column(
-        children: [
-          _MessageBanner(
-            icon: Icons.check_circle_outline,
-            color: Colors.green,
-            text: '¡Listo! ${status.fileName ?? ''}',
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _download,
-            icon: const Icon(Icons.save_alt),
-            label: const Text('Descargar archivo'),
-          ),
-        ],
+      return Padding(
+        padding: const EdgeInsets.only(top: 20),
+        child: _SuccessCard(
+          fileName: status.fileName ?? 'archivo',
+          onDownload: _download,
+        ),
       );
     }
 
-    // PENDING o PROCESSING.
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: _ProgressView(progress: status.progress),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Text(
+      'Solo para contenido propio, de dominio público o con licencia.',
+      textAlign: TextAlign.center,
+      style: TextStyle(fontSize: 11.5, color: Colors.grey.shade500),
+    );
+  }
+}
+
+/// Vista de progreso con tres fases: procesando, descargando (con %) y convirtiendo.
+class _ProgressView extends StatelessWidget {
+  const _ProgressView({required this.progress});
+
+  final int progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final bool determinate = progress > 0 && progress < 100;
+
+    final String phase;
+    if (progress <= 0) {
+      phase = 'Procesando…';
+    } else if (progress >= 100) {
+      phase = 'Convirtiendo…';
+    } else {
+      phase = 'Descargando…';
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Progreso: ${status.progress}%'),
-        const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: status.progress > 0 ? status.progress / 100 : null,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(phase, style: const TextStyle(fontWeight: FontWeight.w600)),
+            if (determinate)
+              Text('$progress%',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700, color: scheme.primary)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: determinate
+              // Barra determinada que se anima suave entre lecturas.
+              ? TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: progress / 100),
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOut,
+                  builder: (_, value, __) => LinearProgressIndicator(
+                    value: value,
+                    minHeight: 10,
+                    backgroundColor: Colors.grey.shade200,
+                  ),
+                )
+              // Indeterminada mientras no hay % (procesando o convirtiendo).
+              : LinearProgressIndicator(
+                  minHeight: 10,
+                  backgroundColor: Colors.grey.shade200,
+                ),
         ),
       ],
     );
   }
 }
 
-class _MessageBanner extends StatelessWidget {
-  const _MessageBanner({
-    required this.icon,
-    required this.color,
-    required this.text,
-  });
+class _SuccessCard extends StatelessWidget {
+  const _SuccessCard({required this.fileName, required this.onDownload});
 
-  final IconData icon;
-  final Color color;
-  final String text;
+  final String fileName;
+  final VoidCallback onDownload;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        color: const Color(0xFFE8F5E9),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  fileName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: FilledButton.icon(
+              onPressed: onDownload,
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF2E7D32),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.download_rounded),
+              label: const Text('Descargar archivo'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDECEA),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 12),
-          Expanded(child: Text(text)),
+          const Icon(Icons.error_outline_rounded, color: Color(0xFFC62828)),
+          const SizedBox(width: 10),
+          Expanded(
+            child:
+                Text(message, style: const TextStyle(color: Color(0xFFB71C1C))),
+          ),
         ],
       ),
     );

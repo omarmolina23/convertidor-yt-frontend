@@ -7,7 +7,7 @@ void main() {
   testWidgets('La pantalla principal muestra el formulario', (tester) async {
     await tester.pumpWidget(const ConvertidorApp());
 
-    expect(find.text('Convertidor YouTube → MP3/MP4'), findsOneWidget);
+    expect(find.text('Convertidor YouTube'), findsOneWidget);
     expect(find.text('Convertir'), findsOneWidget);
     expect(find.text('MP3'), findsOneWidget);
     expect(find.text('MP4'), findsOneWidget);
@@ -18,6 +18,8 @@ void main() {
 
     await tester.enterText(
         find.byType(TextFormField).first, 'https://example.com');
+    await tester.ensureVisible(find.text('Convertir'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Convertir'));
     await tester.pump();
 
