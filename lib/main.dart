@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 import 'screens/home_screen.dart';
 
@@ -9,45 +9,20 @@ void main() {
 class ConvertidorApp extends StatelessWidget {
   const ConvertidorApp({super.key});
 
-  // Paleta minimalista: superficies neutras claras + un acento rojo sobrio.
+  // Acento rojo sobrio (estilo YouTube) sobre el fondo agrupado de iOS.
   static const Color _accent = Color(0xFFE53935);
-  static const Color _surface = Color(0xFFF6F7F9);
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: _accent,
-      brightness: Brightness.light,
-    ).copyWith(surface: _surface);
-
-    return MaterialApp(
+    return const CupertinoApp(
       title: 'Convertidor YouTube',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: colorScheme,
-        scaffoldBackgroundColor: _surface,
-        fontFamily: 'Roboto',
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.grey.shade300),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.grey.shade300),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: colorScheme.primary, width: 1.6),
-          ),
-        ),
+      theme: CupertinoThemeData(
+        brightness: Brightness.light,
+        primaryColor: _accent,
+        scaffoldBackgroundColor: Color(0xFFF2F2F7),
       ),
-      home: const HomeScreen(),
+      home: HomeScreen(),
     );
   }
 }

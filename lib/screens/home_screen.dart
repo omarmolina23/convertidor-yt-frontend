@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 import '../models/conversion_models.dart';
 import '../services/conversion_service.dart';
@@ -14,7 +14,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _service = ConversionService();
 
   final _urlController = TextEditingController();
@@ -29,6 +28,17 @@ class _HomeScreenState extends State<HomeScreen> {
   JobStatus? _status;
   bool _submitting = false;
   String? _errorMessage;
+
+  // Errores de validación por campo (estilo iOS: texto rojo bajo el campo).
+  String? _urlError;
+  String? _startError;
+  String? _endError;
+
+  static const Color _accent = Color(0xFFE53935);
+  static const Color _fieldFill = Color(0xFFF2F2F7);
+  static const Color _fieldBorder = Color(0xFFE0E0E5);
+  static const Color _ink = Color(0xFF1C1C1E);
+  static const Color _inkSoft = Color(0xFF6E6E73);
 
   static const _audioQualities = ['128', '192', '256', '320'];
   static const _videoQualities = ['480', '720', '1080'];
@@ -45,8 +55,40 @@ class _HomeScreenState extends State<HomeScreen> {
   List<String> get _qualities =>
       _format == OutputFormat.mp3 ? _audioQualities : _videoQualities;
 
+  bool _validate() {
+    String? urlErr;
+    final url = _urlController.text.trim();
+    if (url.isEmpty) {
+      urlErr = 'Ingresa un enlace';
+    } else if (!url.contains('youtube.com') && !url.contains('youtu.be')) {
+      urlErr = 'Debe ser un enlace de YouTube';
+    }
+
+    String? startErr;
+    String? endErr;
+    if (_useInterval) {
+      startErr = _timeError(_startController.text);
+      endErr = _timeError(_endController.text);
+    }
+
+    setState(() {
+      _urlError = urlErr;
+      _startError = startErr;
+      _endError = endErr;
+    });
+    return urlErr == null && startErr == null && endErr == null;
+  }
+
+  String? _timeError(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Requerido';
+    final regex = RegExp(r'^([0-9]{1,2}:)?[0-5]?[0-9]:[0-5][0-9]$');
+    if (!regex.hasMatch(v)) return 'MM:SS o HH:MM:SS';
+    return null;
+  }
+
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_validate()) return;
     FocusScope.of(context).unfocus();
 
     setState(() {
@@ -111,20 +153,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
+    return CupertinoPageScaffold(
+      child: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
+              constraints: const BoxConstraints(maxWidth: 460),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildHeader(),
                   const SizedBox(height: 28),
                   _buildCard(),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
                   _buildFooter(),
                 ],
               ),
@@ -136,34 +178,41 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader() {
-    final scheme = Theme.of(context).colorScheme;
     return Column(
       children: [
         Container(
-          width: 56,
-          height: 56,
+          width: 60,
+          height: 60,
           decoration: BoxDecoration(
-            color: scheme.primary,
+            color: _accent,
             borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: _accent.withValues(alpha: 0.35),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-          child: const Icon(Icons.play_arrow_rounded,
-              color: Colors.white, size: 34),
+          child: const Icon(CupertinoIcons.play_fill,
+              color: CupertinoColors.white, size: 28),
         ),
         const SizedBox(height: 16),
-        Text(
+        const Text(
           'Convertidor YouTube',
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+            color: _ink,
+          ),
         ),
         const SizedBox(height: 6),
-        Text(
+        const Text(
           'Convierte cualquier video a MP3 o MP4',
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade600,
-              ),
+          style: TextStyle(fontSize: 15, color: CupertinoColors.systemGrey),
         ),
       ],
     );
@@ -172,40 +221,37 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildCard() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: CupertinoColors.white,
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: CupertinoColors.systemGrey.withValues(alpha: 0.18),
             blurRadius: 24,
-            offset: const Offset(0, 8),
+            offset: const Offset(0, 10),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(24),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildUrlField(),
-            const SizedBox(height: 22),
-            _label('Formato'),
-            const SizedBox(height: 10),
-            _buildFormatSelector(),
-            const SizedBox(height: 22),
-            _label(_format == OutputFormat.mp3
-                ? 'Calidad de audio'
-                : 'Resolución'),
-            const SizedBox(height: 10),
-            _buildQualitySelector(),
-            const SizedBox(height: 6),
-            _buildIntervalSection(),
-            const SizedBox(height: 24),
-            _buildSubmitButton(),
-            _buildResultSection(),
-          ],
-        ),
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _label('Enlace'),
+          const SizedBox(height: 8),
+          _buildUrlField(),
+          const SizedBox(height: 20),
+          _label('Formato'),
+          const SizedBox(height: 10),
+          _buildFormatSelector(),
+          const SizedBox(height: 20),
+          _label(_format == OutputFormat.mp3 ? 'Calidad de audio' : 'Resolución'),
+          const SizedBox(height: 10),
+          _buildQualitySelector(),
+          const SizedBox(height: 14),
+          _buildIntervalSection(),
+          const SizedBox(height: 22),
+          _buildSubmitButton(),
+          _buildResultSection(),
+        ],
       ),
     );
   }
@@ -213,77 +259,162 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _label(String text) {
     return Text(
       text,
-      style: TextStyle(
+      style: const TextStyle(
+        fontSize: 13,
         fontWeight: FontWeight.w600,
-        fontSize: 13.5,
-        color: Colors.grey.shade800,
+        color: _inkSoft,
+      ),
+    );
+  }
+
+  BoxDecoration _fieldDecoration(bool hasError) {
+    return BoxDecoration(
+      color: _fieldFill,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: hasError ? CupertinoColors.systemRed : _fieldBorder,
+        width: hasError ? 1.4 : 1,
+      ),
+    );
+  }
+
+  Widget _fieldError(String? error) {
+    if (error == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, left: 4),
+      child: Text(
+        error,
+        style: const TextStyle(fontSize: 12.5, color: CupertinoColors.systemRed),
       ),
     );
   }
 
   Widget _buildUrlField() {
-    return TextFormField(
-      controller: _urlController,
-      keyboardType: TextInputType.url,
-      decoration: const InputDecoration(
-        hintText: 'Pega el enlace de YouTube',
-        prefixIcon: Icon(Icons.link_rounded),
-      ),
-      validator: (value) {
-        final v = value?.trim() ?? '';
-        if (v.isEmpty) return 'Ingresa un enlace';
-        if (!v.contains('youtube.com') && !v.contains('youtu.be')) {
-          return 'Debe ser un enlace de YouTube';
-        }
-        return null;
-      },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CupertinoTextField(
+          controller: _urlController,
+          keyboardType: TextInputType.url,
+          placeholder: 'Pega el enlace de YouTube',
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          style: const TextStyle(color: _ink),
+          prefix: const Padding(
+            padding: EdgeInsets.only(left: 12),
+            child: Icon(CupertinoIcons.link,
+                size: 20, color: CupertinoColors.systemGrey),
+          ),
+          decoration: _fieldDecoration(_urlError != null),
+          onChanged: (_) {
+            if (_urlError != null) setState(() => _urlError = null);
+          },
+        ),
+        _fieldError(_urlError),
+      ],
     );
   }
 
   Widget _buildFormatSelector() {
-    return SegmentedButton<OutputFormat>(
-      style: SegmentedButton.styleFrom(
-        selectedBackgroundColor:
-            Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-        selectedForegroundColor: Theme.of(context).colorScheme.primary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return SizedBox(
+      width: double.infinity,
+      child: CupertinoSlidingSegmentedControl<OutputFormat>(
+        groupValue: _format,
+        backgroundColor: _fieldFill,
+        thumbColor: CupertinoColors.white,
+        padding: const EdgeInsets.all(4),
+        children: {
+          OutputFormat.mp3: _segment(CupertinoIcons.music_note, 'MP3'),
+          OutputFormat.mp4: _segment(CupertinoIcons.film, 'MP4'),
+        },
+        onValueChanged: (value) {
+          if (value == null) return;
+          setState(() {
+            _format = value;
+            _quality = _qualities.first;
+          });
+        },
       ),
-      segments: const [
-        ButtonSegment(
-          value: OutputFormat.mp3,
-          label: Text('MP3'),
-          icon: Icon(Icons.music_note_rounded),
-        ),
-        ButtonSegment(
-          value: OutputFormat.mp4,
-          label: Text('MP4'),
-          icon: Icon(Icons.movie_rounded),
-        ),
-      ],
-      selected: {_format},
-      onSelectionChanged: (selection) {
-        setState(() {
-          _format = selection.first;
-          _quality = _qualities.first;
-        });
-      },
+    );
+  }
+
+  Widget _segment(IconData icon, String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18, color: _ink),
+          const SizedBox(width: 6),
+          Text(label,
+              style: const TextStyle(fontWeight: FontWeight.w600, color: _ink)),
+        ],
+      ),
     );
   }
 
   Widget _buildQualitySelector() {
-    return DropdownButtonFormField<String>(
-      key: ValueKey(_format),
-      initialValue: _quality,
-      decoration: const InputDecoration(
-        prefixIcon: Icon(Icons.tune_rounded),
+    final text = _format == OutputFormat.mp3 ? '$_quality kbps' : '${_quality}p';
+    return GestureDetector(
+      onTap: _showQualityPicker,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: _fieldDecoration(false),
+        child: Row(
+          children: [
+            const Icon(CupertinoIcons.slider_horizontal_3,
+                size: 20, color: CupertinoColors.systemGrey),
+            const SizedBox(width: 10),
+            Text(text, style: const TextStyle(fontSize: 16, color: _ink)),
+            const Spacer(),
+            const Icon(CupertinoIcons.chevron_up_chevron_down,
+                size: 18, color: CupertinoColors.systemGrey),
+          ],
+        ),
       ),
-      items: _qualities
-          .map((q) => DropdownMenuItem(
-                value: q,
-                child: Text(_format == OutputFormat.mp3 ? '$q kbps' : '${q}p'),
-              ))
-          .toList(),
-      onChanged: (value) => setState(() => _quality = value ?? _quality),
+    );
+  }
+
+  void _showQualityPicker() {
+    FocusScope.of(context).unfocus();
+    final options = _qualities;
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (popupContext) => Container(
+        height: 280,
+        padding: const EdgeInsets.only(top: 6),
+        color: CupertinoColors.systemBackground.resolveFrom(popupContext),
+        child: Column(
+          children: [
+            Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: CupertinoButton(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                onPressed: () => Navigator.of(popupContext).pop(),
+                child: const Text('Listo',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+            Expanded(
+              child: CupertinoPicker(
+                scrollController:
+                    FixedExtentScrollController(initialItem: options.indexOf(_quality)),
+                itemExtent: 38,
+                onSelectedItemChanged: (i) =>
+                    setState(() => _quality = options[i]),
+                children: options
+                    .map((q) => Center(
+                          child: Text(
+                            _format == OutputFormat.mp3 ? '$q kbps' : '${q}p',
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -293,89 +424,112 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Row(
           children: [
-            Expanded(
+            const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Recortar por intervalo'),
+                  Text('Recortar por intervalo',
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                  SizedBox(height: 2),
                   Text(
                     'Descarga solo un tramo (MM:SS o HH:MM:SS)',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(
+                        fontSize: 12.5, color: CupertinoColors.systemGrey),
                   ),
                 ],
               ),
             ),
-            Switch(
+            CupertinoSwitch(
               value: _useInterval,
-              onChanged: (v) => setState(() => _useInterval = v),
+              activeTrackColor: _accent,
+              onChanged: (v) => setState(() {
+                _useInterval = v;
+                if (!v) {
+                  _startError = null;
+                  _endError = null;
+                }
+              }),
             ),
           ],
         ),
         AnimatedSize(
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
           child: _useInterval
               ? Padding(
-                  padding: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.only(top: 12),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: TextFormField(
-                          controller: _startController,
-                          decoration: const InputDecoration(
-                            labelText: 'Inicio',
-                            hintText: '00:30',
-                          ),
-                          validator: _validateTime,
-                        ),
-                      ),
+                          child: _timeField(_startController, 'Inicio', '00:30',
+                              _startError)),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: TextFormField(
-                          controller: _endController,
-                          decoration: const InputDecoration(
-                            labelText: 'Fin',
-                            hintText: '01:45',
-                          ),
-                          validator: _validateTime,
-                        ),
-                      ),
+                          child: _timeField(
+                              _endController, 'Fin', '01:45', _endError)),
                     ],
                   ),
                 )
-              : const SizedBox.shrink(),
+              : const SizedBox(width: double.infinity),
         ),
       ],
     );
   }
 
-  String? _validateTime(String? value) {
-    if (!_useInterval) return null;
-    final v = value?.trim() ?? '';
-    if (v.isEmpty) return 'Requerido';
-    final regex = RegExp(r'^([0-9]{1,2}:)?[0-5]?[0-9]:[0-5][0-9]$');
-    if (!regex.hasMatch(v)) return 'MM:SS o HH:MM:SS';
-    return null;
+  Widget _timeField(
+      TextEditingController controller, String label, String hint, String? error) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(fontSize: 12.5, color: _inkSoft)),
+        const SizedBox(height: 6),
+        CupertinoTextField(
+          controller: controller,
+          placeholder: hint,
+          padding: const EdgeInsets.all(12),
+          style: const TextStyle(color: _ink),
+          decoration: _fieldDecoration(error != null),
+        ),
+        _fieldError(error),
+      ],
+    );
   }
 
   Widget _buildSubmitButton() {
     return SizedBox(
-      height: 52,
-      child: FilledButton.icon(
+      width: double.infinity,
+      child: CupertinoButton(
+        color: _accent,
+        disabledColor: const Color(0xFFEF9A9A),
+        borderRadius: BorderRadius.circular(14),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         onPressed: _submitting ? null : _submit,
-        style: FilledButton.styleFrom(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: _submitting
+              ? const [
+                  CupertinoActivityIndicator(color: CupertinoColors.white),
+                  SizedBox(width: 10),
+                  Text('Procesando…',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: CupertinoColors.white)),
+                ]
+              : const [
+                  Icon(CupertinoIcons.bolt_fill,
+                      color: CupertinoColors.white, size: 20),
+                  SizedBox(width: 8),
+                  Text('Convertir',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: CupertinoColors.white)),
+                ],
         ),
-        icon: _submitting
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white),
-              )
-            : const Icon(Icons.bolt_rounded),
-        label: Text(_submitting ? 'Procesando…' : 'Convertir'),
       ),
     );
   }
@@ -383,7 +537,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildResultSection() {
     if (_errorMessage != null) {
       return Padding(
-        padding: const EdgeInsets.only(top: 20),
+        padding: const EdgeInsets.only(top: 18),
         child: _ErrorBanner(message: _errorMessage!),
       );
     }
@@ -393,7 +547,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (status.state == JobState.ready) {
       return Padding(
-        padding: const EdgeInsets.only(top: 20),
+        padding: const EdgeInsets.only(top: 18),
         child: _SuccessCard(
           fileName: status.fileName ?? 'archivo',
           onDownload: _download,
@@ -402,29 +556,31 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(top: 20),
-      child: _ProgressView(progress: status.progress),
+      padding: const EdgeInsets.only(top: 18),
+      child: _ProgressView(progress: status.progress, accent: _accent),
     );
   }
 
   Widget _buildFooter() {
-    return Text(
+    return const Text(
       'Solo para contenido propio, de dominio público o con licencia.',
       textAlign: TextAlign.center,
-      style: TextStyle(fontSize: 11.5, color: Colors.grey.shade500),
+      style: TextStyle(fontSize: 11.5, color: CupertinoColors.systemGrey),
     );
   }
 }
 
-/// Vista de progreso con tres fases: procesando, descargando (con %) y convirtiendo.
+/// Progreso con tres fases: procesando, descargando (con %) y convirtiendo.
+/// Cupertino no trae barra lineal, así que se dibuja una determinada custom y
+/// se usa el spinner nativo para las fases sin porcentaje.
 class _ProgressView extends StatelessWidget {
-  const _ProgressView({required this.progress});
+  const _ProgressView({required this.progress, required this.accent});
 
   final int progress;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final bool determinate = progress > 0 && progress < 100;
 
     final String phase;
@@ -442,34 +598,50 @@ class _ProgressView extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(phase, style: const TextStyle(fontWeight: FontWeight.w600)),
+            Row(
+              children: [
+                if (!determinate) ...[
+                  const CupertinoActivityIndicator(radius: 8),
+                  const SizedBox(width: 8),
+                ],
+                Text(phase,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 14)),
+              ],
+            ),
             if (determinate)
               Text('$progress%',
                   style: TextStyle(
-                      fontWeight: FontWeight.w700, color: scheme.primary)),
+                      fontWeight: FontWeight.w700, color: accent, fontSize: 14)),
           ],
         ),
-        const SizedBox(height: 10),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: determinate
-              // Barra determinada que se anima suave entre lecturas.
-              ? TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0, end: progress / 100),
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.easeOut,
-                  builder: (_, value, __) => LinearProgressIndicator(
-                    value: value,
-                    minHeight: 10,
-                    backgroundColor: Colors.grey.shade200,
+        if (determinate) ...[
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LayoutBuilder(
+              builder: (context, constraints) => Stack(
+                children: [
+                  Container(
+                    height: 8,
+                    width: constraints.maxWidth,
+                    color: const Color(0xFFE5E5EA),
                   ),
-                )
-              // Indeterminada mientras no hay % (procesando o convirtiendo).
-              : LinearProgressIndicator(
-                  minHeight: 10,
-                  backgroundColor: Colors.grey.shade200,
-                ),
-        ),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: progress / 100),
+                    duration: const Duration(milliseconds: 450),
+                    curve: Curves.easeOut,
+                    builder: (context, value, child) => Container(
+                      height: 8,
+                      width: constraints.maxWidth * value,
+                      color: accent,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -486,14 +658,15 @@ class _SuccessCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F5E9),
+        color: const Color(0xFFE7F6EC),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         children: [
           Row(
             children: [
-              const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32)),
+              const Icon(CupertinoIcons.checkmark_circle_fill,
+                  color: Color(0xFF34C759)),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -508,16 +681,23 @@ class _SuccessCard extends StatelessWidget {
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
-            height: 48,
-            child: FilledButton.icon(
+            child: CupertinoButton(
+              color: const Color(0xFF34C759),
+              borderRadius: BorderRadius.circular(12),
+              padding: const EdgeInsets.symmetric(vertical: 14),
               onPressed: onDownload,
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF2E7D32),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.cloud_download_fill,
+                      color: CupertinoColors.white, size: 20),
+                  SizedBox(width: 8),
+                  Text('Descargar archivo',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: CupertinoColors.white)),
+                ],
               ),
-              icon: const Icon(Icons.download_rounded),
-              label: const Text('Descargar archivo'),
             ),
           ),
         ],
@@ -536,17 +716,18 @@ class _ErrorBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFDECEA),
+        color: const Color(0xFFFDE7E9),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded, color: Color(0xFFC62828)),
+          const Icon(CupertinoIcons.exclamationmark_circle_fill,
+              color: Color(0xFFFF3B30)),
           const SizedBox(width: 10),
           Expanded(
-            child:
-                Text(message, style: const TextStyle(color: Color(0xFFB71C1C))),
+            child: Text(message,
+                style: const TextStyle(color: Color(0xFFC62828))),
           ),
         ],
       ),

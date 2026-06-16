@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:convertidor_yt_frontend/main.dart';
@@ -17,7 +17,7 @@ void main() {
     await tester.pumpWidget(const ConvertidorApp());
 
     await tester.enterText(
-        find.byType(TextFormField).first, 'https://example.com');
+        find.byType(CupertinoTextField).first, 'https://example.com');
     await tester.ensureVisible(find.text('Convertir'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Convertir'));
