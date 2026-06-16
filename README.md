@@ -57,6 +57,31 @@ docker run --rm -p 8081:80 convertidor-yt-frontend
 
 ---
 
+## Desplegar con docker-compose y ver los cambios
+
+El compose vive en el repo del backend (`../backend/docker-compose.yml`) y
+construye el frontend desde esta carpeta.
+
+**Tras cualquier cambio en el frontend, reconstruye SIEMPRE con `--build`:**
+
+```bash
+docker compose -f ../backend/docker-compose.yml up -d --build frontend
+```
+
+> ⚠️ Sin `--build`, un `up` reutiliza la imagen anterior (el tag está fijo en
+> `convertidor-yt-frontend:local`) y **no verás tus cambios**.
+
+Si aun así ves la versión vieja en el navegador, es el **service worker / caché
+de Flutter web**. Fuerza la recarga con **Ctrl+Shift+R**, o en DevTools (F12) →
+**Application → Service Workers → Unregister** + *Clear site data*.
+
+> `nginx.conf` ya está configurado para **no cachear** los archivos de arranque
+> sin hash (`index.html`, `flutter_service_worker.js`, `flutter.js`,
+> `main.dart.js`, `manifest.json`, `version.json`), así que los próximos
+> despliegues se reflejan sin trucos de caché.
+
+---
+
 ## Estructura
 
 ```
