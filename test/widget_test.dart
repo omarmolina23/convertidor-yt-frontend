@@ -25,4 +25,20 @@ void main() {
 
     expect(find.text('Debe ser un enlace de YouTube'), findsOneWidget);
   });
+
+  testWidgets('El selector cambia el idioma de la interfaz a inglés',
+      (tester) async {
+    await tester.pumpWidget(const ConvertidorApp());
+
+    expect(find.text('Convertir'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('language-button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('English'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Convert'), findsOneWidget);
+    expect(find.text('Convertir'), findsNothing);
+  });
 }

@@ -2,9 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 
+import '../l10n/app_localizations.dart';
+import '../l10n/app_strings.dart';
 import '../models/conversion_models.dart';
 import '../services/conversion_service.dart';
 import '../services/file_downloader.dart';
+
+/// Error de validación por campo. Se guarda como clave (no como texto) para que
+/// el mensaje se re-traduzca solo si el usuario cambia de idioma.
+enum _FieldError { enterLink, notYoutube, timeRequired, timeFormat }
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,9 +36,9 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _errorMessage;
 
   // Errores de validación por campo (estilo iOS: texto rojo bajo el campo).
-  String? _urlError;
-  String? _startError;
-  String? _endError;
+  _FieldError? _urlError;
+  _FieldError? _startError;
+  _FieldError? _endError;
 
   static const Color _accent = Color(0xFFE53935);
   static const Color _fieldFill = Color(0xFFF2F2F7);
@@ -52,20 +58,22 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  AppStrings get _t => AppLocalizations.of(context).strings;
+
   List<String> get _qualities =>
       _format == OutputFormat.mp3 ? _audioQualities : _videoQualities;
 
   bool _validate() {
-    String? urlErr;
+    _FieldError? urlErr;
     final url = _urlController.text.trim();
     if (url.isEmpty) {
-      urlErr = 'Ingresa un enlace';
+      urlErr = _FieldError.enterLink;
     } else if (!url.contains('youtube.com') && !url.contains('youtu.be')) {
-      urlErr = 'Debe ser un enlace de YouTube';
+      urlErr = _FieldError.notYoutube;
     }
 
-    String? startErr;
-    String? endErr;
+    _FieldError? startErr;
+    _FieldError? endErr;
     if (_useInterval) {
       startErr = _timeError(_startController.text);
       endErr = _timeError(_endController.text);
@@ -79,12 +87,26 @@ class _HomeScreenState extends State<HomeScreen> {
     return urlErr == null && startErr == null && endErr == null;
   }
 
-  String? _timeError(String? value) {
+  _FieldError? _timeError(String? value) {
     final v = value?.trim() ?? '';
-    if (v.isEmpty) return 'Requerido';
+    if (v.isEmpty) return _FieldError.timeRequired;
     final regex = RegExp(r'^([0-9]{1,2}:)?[0-5]?[0-9]:[0-5][0-9]$');
-    if (!regex.hasMatch(v)) return 'MM:SS o HH:MM:SS';
+    if (!regex.hasMatch(v)) return _FieldError.timeFormat;
     return null;
+  }
+
+  String _fieldErrorText(_FieldError error) {
+    final t = _t;
+    switch (error) {
+      case _FieldError.enterLink:
+        return t.errorEnterLink;
+      case _FieldError.notYoutube:
+        return t.errorNotYouTube;
+      case _FieldError.timeRequired:
+        return t.errorRequired;
+      case _FieldError.timeFormat:
+        return t.errorTimeFormat;
+    }
   }
 
   Future<void> _submit() async {
@@ -129,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() {
             _submitting = false;
             if (status.state == JobState.failed) {
-              _errorMessage = status.error ?? 'La conversión falló';
+              _errorMessage = status.error ?? _t.conversionFailed;
             }
           });
         }
@@ -153,21 +175,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = _t;
     return CupertinoPageScaffold(
       child: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 460),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildHeader(),
-                  const SizedBox(height: 28),
-                  _buildCard(),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: _buildLanguageButton(),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildHeader(t),
+                  const SizedBox(height: 24),
+                  _buildCard(t),
                   const SizedBox(height: 18),
-                  _buildFooter(),
+                  _buildFooter(t),
                 ],
               ),
             ),
@@ -177,7 +205,73 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildLanguageButton() {
+    final current = AppLocalizations.of(context).locale;
+    return GestureDetector(
+      key: const Key('language-button'),
+      onTap: _showLanguageOptions,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: CupertinoColors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _fieldBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(CupertinoIcons.globe, size: 16, color: _inkSoft),
+            const SizedBox(width: 6),
+            Text(current.code,
+                style: const TextStyle(
+                    fontSize: 13.5, fontWeight: FontWeight.w600, color: _ink)),
+            const SizedBox(width: 2),
+            const Icon(CupertinoIcons.chevron_down, size: 13, color: _inkSoft),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLanguageOptions() {
+    FocusScope.of(context).unfocus();
+    final loc = AppLocalizations.of(context);
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (popupContext) => CupertinoActionSheet(
+        title: Text(loc.strings.languageTitle),
+        actions: AppLocale.values.map((option) {
+          final selected = option == loc.locale;
+          return CupertinoActionSheetAction(
+            onPressed: () {
+              loc.setLocale(option);
+              Navigator.of(popupContext).pop();
+            },
+            child: selected
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(option.nativeName,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, color: _accent)),
+                      const SizedBox(width: 8),
+                      const Icon(CupertinoIcons.checkmark,
+                          size: 20, color: _accent),
+                    ],
+                  )
+                : Text(option.nativeName),
+          );
+        }).toList(),
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.of(popupContext).pop(),
+          child: Text(loc.strings.cancel),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(AppStrings t) {
     return Column(
       children: [
         Container(
@@ -198,10 +292,10 @@ class _HomeScreenState extends State<HomeScreen> {
               color: CupertinoColors.white, size: 28),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'Convertidor YouTube',
+        Text(
+          t.appTitle,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.5,
@@ -209,16 +303,16 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'Convierte cualquier video a MP3 o MP4',
+        Text(
+          t.subtitle,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 15, color: CupertinoColors.systemGrey),
+          style: const TextStyle(fontSize: 15, color: CupertinoColors.systemGrey),
         ),
       ],
     );
   }
 
-  Widget _buildCard() {
+  Widget _buildCard(AppStrings t) {
     return Container(
       decoration: BoxDecoration(
         color: CupertinoColors.white,
@@ -235,22 +329,24 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _label('Enlace'),
+          _label(t.linkLabel),
           const SizedBox(height: 8),
-          _buildUrlField(),
+          _buildUrlField(t),
           const SizedBox(height: 20),
-          _label('Formato'),
+          _label(t.formatLabel),
           const SizedBox(height: 10),
           _buildFormatSelector(),
           const SizedBox(height: 20),
-          _label(_format == OutputFormat.mp3 ? 'Calidad de audio' : 'Resolución'),
+          _label(_format == OutputFormat.mp3
+              ? t.audioQualityLabel
+              : t.resolutionLabel),
           const SizedBox(height: 10),
           _buildQualitySelector(),
           const SizedBox(height: 14),
-          _buildIntervalSection(),
+          _buildIntervalSection(t),
           const SizedBox(height: 22),
-          _buildSubmitButton(),
-          _buildResultSection(),
+          _buildSubmitButton(t),
+          _buildResultSection(t),
         ],
       ),
     );
@@ -278,25 +374,25 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _fieldError(String? error) {
+  Widget _fieldError(_FieldError? error) {
     if (error == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 6, left: 4),
       child: Text(
-        error,
+        _fieldErrorText(error),
         style: const TextStyle(fontSize: 12.5, color: CupertinoColors.systemRed),
       ),
     );
   }
 
-  Widget _buildUrlField() {
+  Widget _buildUrlField(AppStrings t) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CupertinoTextField(
           controller: _urlController,
           keyboardType: TextInputType.url,
-          placeholder: 'Pega el enlace de YouTube',
+          placeholder: t.linkPlaceholder,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           style: const TextStyle(color: _ink),
           prefix: const Padding(
@@ -376,12 +472,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showQualityOptions() {
     FocusScope.of(context).unfocus();
+    final t = _t;
     final options = _qualities;
     showCupertinoModalPopup<void>(
       context: context,
       builder: (popupContext) => CupertinoActionSheet(
         title: Text(
-            _format == OutputFormat.mp3 ? 'Calidad de audio' : 'Resolución'),
+            _format == OutputFormat.mp3 ? t.audioQualityLabel : t.resolutionLabel),
         actions: options.map((q) {
           final selected = q == _quality;
           final label = _format == OutputFormat.mp3 ? '$q kbps' : '${q}p';
@@ -408,29 +505,29 @@ class _HomeScreenState extends State<HomeScreen> {
         cancelButton: CupertinoActionSheetAction(
           isDefaultAction: true,
           onPressed: () => Navigator.of(popupContext).pop(),
-          child: const Text('Cancelar'),
+          child: Text(t.cancel),
         ),
       ),
     );
   }
 
-  Widget _buildIntervalSection() {
+  Widget _buildIntervalSection(AppStrings t) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Recortar por intervalo',
-                      style:
-                          TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-                  SizedBox(height: 2),
+                  Text(t.intervalTitle,
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 2),
                   Text(
-                    'Descarga solo un tramo (MM:SS o HH:MM:SS)',
-                    style: TextStyle(
+                    t.intervalSubtitle,
+                    style: const TextStyle(
                         fontSize: 12.5, color: CupertinoColors.systemGrey),
                   ),
                 ],
@@ -459,12 +556,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                          child: _timeField(_startController, 'Inicio', '00:30',
-                              _startError)),
+                          child: _timeField(_startController, t.startLabel,
+                              '00:30', _startError)),
                       const SizedBox(width: 12),
                       Expanded(
                           child: _timeField(
-                              _endController, 'Fin', '01:45', _endError)),
+                              _endController, t.endLabel, '01:45', _endError)),
                     ],
                   ),
                 )
@@ -474,13 +571,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _timeField(
-      TextEditingController controller, String label, String hint, String? error) {
+  Widget _timeField(TextEditingController controller, String label, String hint,
+      _FieldError? error) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(fontSize: 12.5, color: _inkSoft)),
+        Text(label, style: const TextStyle(fontSize: 12.5, color: _inkSoft)),
         const SizedBox(height: 6),
         CupertinoTextField(
           controller: controller,
@@ -494,7 +590,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSubmitButton() {
+  Widget _buildSubmitButton(AppStrings t) {
     return SizedBox(
       width: double.infinity,
       child: CupertinoButton(
@@ -506,21 +602,21 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: _submitting
-              ? const [
-                  CupertinoActivityIndicator(color: CupertinoColors.white),
-                  SizedBox(width: 10),
-                  Text('Procesando…',
-                      style: TextStyle(
+              ? [
+                  const CupertinoActivityIndicator(color: CupertinoColors.white),
+                  const SizedBox(width: 10),
+                  Text(t.processing,
+                      style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
                           color: CupertinoColors.white)),
                 ]
-              : const [
-                  Icon(CupertinoIcons.bolt_fill,
+              : [
+                  const Icon(CupertinoIcons.bolt_fill,
                       color: CupertinoColors.white, size: 20),
-                  SizedBox(width: 8),
-                  Text('Convertir',
-                      style: TextStyle(
+                  const SizedBox(width: 8),
+                  Text(t.convertButton,
+                      style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
                           color: CupertinoColors.white)),
@@ -530,7 +626,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildResultSection() {
+  Widget _buildResultSection(AppStrings t) {
     if (_errorMessage != null) {
       return Padding(
         padding: const EdgeInsets.only(top: 18),
@@ -545,7 +641,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return Padding(
         padding: const EdgeInsets.only(top: 18),
         child: _SuccessCard(
-          fileName: status.fileName ?? 'archivo',
+          fileName: status.fileName ?? t.fileFallback,
           onDownload: _download,
         ),
       );
@@ -557,11 +653,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFooter() {
-    return const Text(
-      'Solo para contenido propio, de dominio público o con licencia.',
+  Widget _buildFooter(AppStrings t) {
+    return Text(
+      t.footer,
       textAlign: TextAlign.center,
-      style: TextStyle(fontSize: 11.5, color: CupertinoColors.systemGrey),
+      style: const TextStyle(fontSize: 11.5, color: CupertinoColors.systemGrey),
     );
   }
 }
@@ -577,15 +673,16 @@ class _ProgressView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).strings;
     final bool determinate = progress > 0 && progress < 100;
 
     final String phase;
     if (progress <= 0) {
-      phase = 'Procesando…';
+      phase = t.phaseProcessing;
     } else if (progress >= 100) {
-      phase = 'Convirtiendo…';
+      phase = t.phaseConverting;
     } else {
-      phase = 'Descargando…';
+      phase = t.phaseDownloading;
     }
 
     return Column(
@@ -651,6 +748,7 @@ class _SuccessCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).strings;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -682,14 +780,14 @@ class _SuccessCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               padding: const EdgeInsets.symmetric(vertical: 14),
               onPressed: onDownload,
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(CupertinoIcons.cloud_download_fill,
+                  const Icon(CupertinoIcons.cloud_download_fill,
                       color: CupertinoColors.white, size: 20),
-                  SizedBox(width: 8),
-                  Text('Descargar archivo',
-                      style: TextStyle(
+                  const SizedBox(width: 8),
+                  Text(t.downloadButton,
+                      style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           color: CupertinoColors.white)),
                 ],
