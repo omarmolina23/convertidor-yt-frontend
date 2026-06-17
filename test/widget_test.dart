@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:convertidor_yt_frontend/main.dart';
@@ -17,12 +17,28 @@ void main() {
     await tester.pumpWidget(const ConvertidorApp());
 
     await tester.enterText(
-        find.byType(TextFormField).first, 'https://example.com');
+        find.byType(CupertinoTextField).first, 'https://example.com');
     await tester.ensureVisible(find.text('Convertir'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Convertir'));
     await tester.pump();
 
     expect(find.text('Debe ser un enlace de YouTube'), findsOneWidget);
+  });
+
+  testWidgets('El selector cambia el idioma de la interfaz a inglés',
+      (tester) async {
+    await tester.pumpWidget(const ConvertidorApp());
+
+    expect(find.text('Convertir'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('language-button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('English'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Convert'), findsOneWidget);
+    expect(find.text('Convertir'), findsNothing);
   });
 }
