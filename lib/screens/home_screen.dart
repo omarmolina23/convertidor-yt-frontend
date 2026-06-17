@@ -306,7 +306,8 @@ class _HomeScreenState extends State<HomeScreen> {
         Text(
           t.subtitle,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 15, color: CupertinoColors.systemGrey),
+          style:
+              const TextStyle(fontSize: 15, color: CupertinoColors.systemGrey),
         ),
       ],
     );
@@ -380,7 +381,8 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.only(top: 6, left: 4),
       child: Text(
         _fieldErrorText(error),
-        style: const TextStyle(fontSize: 12.5, color: CupertinoColors.systemRed),
+        style:
+            const TextStyle(fontSize: 12.5, color: CupertinoColors.systemRed),
       ),
     );
   }
@@ -449,7 +451,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQualitySelector() {
-    final text = _format == OutputFormat.mp3 ? '$_quality kbps' : '${_quality}p';
+    final text =
+        _format == OutputFormat.mp3 ? '$_quality kbps' : '${_quality}p';
     return GestureDetector(
       onTap: _showQualityOptions,
       child: Container(
@@ -477,8 +480,9 @@ class _HomeScreenState extends State<HomeScreen> {
     showCupertinoModalPopup<void>(
       context: context,
       builder: (popupContext) => CupertinoActionSheet(
-        title: Text(
-            _format == OutputFormat.mp3 ? t.audioQualityLabel : t.resolutionLabel),
+        title: Text(_format == OutputFormat.mp3
+            ? t.audioQualityLabel
+            : t.resolutionLabel),
         actions: options.map((q) {
           final selected = q == _quality;
           final label = _format == OutputFormat.mp3 ? '$q kbps' : '${q}p';
@@ -603,7 +607,8 @@ class _HomeScreenState extends State<HomeScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: _submitting
               ? [
-                  const CupertinoActivityIndicator(color: CupertinoColors.white),
+                  const CupertinoActivityIndicator(
+                      color: CupertinoColors.white),
                   const SizedBox(width: 10),
                   Text(t.processing,
                       style: const TextStyle(
@@ -705,7 +710,9 @@ class _ProgressView extends StatelessWidget {
             if (determinate)
               Text('$progress%',
                   style: TextStyle(
-                      fontWeight: FontWeight.w700, color: accent, fontSize: 14)),
+                      fontWeight: FontWeight.w700,
+                      color: accent,
+                      fontSize: 14)),
           ],
         ),
         if (determinate) ...[
@@ -820,8 +827,8 @@ class _ErrorBanner extends StatelessWidget {
               color: Color(0xFFFF3B30)),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(message,
-                style: const TextStyle(color: Color(0xFFC62828))),
+            child:
+                Text(message, style: const TextStyle(color: Color(0xFFC62828))),
           ),
         ],
       ),
